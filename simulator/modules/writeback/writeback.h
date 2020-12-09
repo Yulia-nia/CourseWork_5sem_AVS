@@ -55,8 +55,9 @@ private:
     /* Input */
     ReadPort<Instr>* rp_mem_datapath = nullptr;
     ReadPort<Instr>* rp_execute_datapath = nullptr;
-    ReadPort<Instr>* rp_branch_datapath = nullptr;    
+    ReadPort<Instr>* rp_branch_datapath = nullptr;
     ReadPort<bool>* rp_trap = nullptr;
+    ReadPort<Instr>* rp_late_alu = nullptr;
 
     /* Output */
     WritePort<InstructionOutput>* wp_bypass = nullptr;

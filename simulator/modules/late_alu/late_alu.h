@@ -1,9 +1,5 @@
-//
-// Created by yulia on 3.12.20.
-//
-
-#ifndef MIPT_MIPS_LATE_ALU_H
-#define MIPT_MIPS_LATE_ALU_H
+#ifndef LATE_ALU_H
+#define LATE_ALU_H
 
 #include <func_sim/operation.h>
 #include <infra/config/config.h>
@@ -11,15 +7,13 @@
 #include <modules/decode/bypass/data_bypass_interface.h>
 #include <modules/ports_instance.h>
 #include <func_sim/rf/rf.h>
-#include <modules/core/perf_instr.h>
-#include <modules/ports_instance.h>
 
 namespace config {
-    extern const PredicatedValue<uint64> long_alu_latency;
+    extern const PredicatedValue<uint64> long_late_alu_latency;
 } // namespace config
 
 template <typename FuncInstr>
-class Execute : public Module
+class Late_alu : public Module
 {
     using Register = typename FuncInstr::Register;
     using Instr = PerfInstr<FuncInstr>;
@@ -29,7 +23,7 @@ class Execute : public Module
 private:
     static constexpr const uint8 SRC_REGISTERS_NUM = 2;
     const Latency last_execution_stage_latency;
-    RF<FuncInstr>* rf = nullptr;
+
     /* Inputs */
     ReadPort<Instr>* rp_datapath = nullptr;
     ReadPort<Instr>* rp_long_latency_execution_unit = nullptr;
@@ -49,7 +43,7 @@ private:
     WritePort<Instr>* wp_long_latency_execution_unit = nullptr;
     WritePort<InstructionOutput>* wp_bypass = nullptr;
     WritePort<InstructionOutput>* wp_long_arithmetic_bypass = nullptr;
-
+    RF<FuncInstr>* rf = nullptr;
     Latency flush_expiration_latency = 0_lt;
 
     void save_flush() { flush_expiration_latency = last_execution_stage_latency; }
@@ -61,9 +55,12 @@ private:
     auto has_flush_expired() const { return flush_expiration_latency == 0_lt; }
 
 public:
-    explicit Execute( Module* parent);
+    explicit Late_alu( Module* parent);
     void clock( Cycle cycle);
-    void set_RF( RF<FuncInstr>* value) { rf = value;}
+    void set_RF(RF<FuncInstr>* value)
+    {
+        rf = value;
+    }
 };
 
-#endif //MIPT_MIPS_LATE_ALU_H
+#endif // EXECUTE_LATE_H

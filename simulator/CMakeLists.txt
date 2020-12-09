@@ -205,6 +205,7 @@ add_library(mipt-mips-src OBJECT
     modules/fetch/bpu/bpu.cpp
     modules/decode/decode.cpp
     modules/execute/execute.cpp
+    modules/late_alu/late_alu.cpp
     modules/mem/mem.cpp
     modules/branch/branch.cpp
     modules/core/perf_sim.cpp

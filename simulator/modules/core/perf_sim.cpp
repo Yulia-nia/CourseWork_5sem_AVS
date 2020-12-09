@@ -17,13 +17,14 @@ namespace config {
 
 template <typename ISA>
 PerfSim<ISA>::PerfSim( std::endian endian, std::string_view isa)
-    : CycleAccurateSimulator( isa)
-    , endian( endian)
-    , fetch( this), decode( this), execute( this), mem( this), branch( this), writeback( this, endian)
+        :CycleAccurateSimulator( isa)
+        , endian( endian)
+        , fetch( this), decode( this), execute( this),late_alu(this),  mem( this),  branch( this), writeback( this, endian)
 {
     rp_halt = make_read_port<Trap>("WRITEBACK_2_CORE_HALT", Port::LATENCY);
 
     decode.set_RF( &rf);
+    late_alu.set_RF(&rf);
     writeback.set_RF( &rf);
     writeback.set_driver( ISA::create_driver( this));
 
@@ -86,6 +87,7 @@ void PerfSim<ISA>::clock_tree( Cycle cycle)
     fetch.clock( cycle);
     decode.clock( cycle);
     execute.clock( cycle);
+    late_alu.clock( cycle);
     mem.clock( cycle);
     branch.clock( cycle);
     writeback.clock( cycle);
@@ -110,7 +112,7 @@ void PerfSim<ISA>::dump_statistics() const
     auto simips = executed_instrs / time;
     auto decode_mispredict_rate = 1.0 * get_rate( decode.get_jumps_num(), decode.get_mispredictions_num());
     auto branch_mispredict_rate = 1.0 * get_rate( branch.get_jumps_num(), branch.get_mispredictions_num());
-    
+
     std::cout << std::endl << "****************************"
               << std::endl << "instrs:     " << executed_instrs
               << std::endl << "cycles:     " << curr_cycle

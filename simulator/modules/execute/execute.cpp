@@ -9,7 +9,7 @@
 
 namespace config {
     const PredicatedValue<uint64> long_alu_latency = { "long-alu-latency", 3, "Latency of long arithmetic logic unit",
-                                                [](uint64 val) { return val >= 2 && val < 64; } };
+                                                       [](uint64 val) { return val >= 2 && val < 64; } };
 } // namespace config
 
 template <typename FuncInstr>
@@ -18,7 +18,7 @@ Execute<FuncInstr>::Execute( Module* parent) : Module( parent, "execute")
 {
     wp_mem_datapath = make_write_port<Instr>("EXECUTE_2_MEMORY" , Port::BW );
     wp_branch_datapath = make_write_port<Instr>("EXECUTE_2_BRANCH" , Port::BW );
-    wp_writeback_datapath = make_write_port<Instr>("EXECUTE_2_WRITEBACK", Port::BW);
+    wp_writeback_datapath = make_write_port<Instr>("EXECUTE_2_LATE_ALU", Port::BW );
     rp_datapath = make_read_port<Instr>("DECODE_2_EXECUTE", Port::LATENCY);
     rp_trap = make_read_port<bool>("WRITEBACK_2_ALL_FLUSH", Port::LATENCY);
 
@@ -47,6 +47,9 @@ Execute<FuncInstr>::Execute( Module* parent) : Module( parent, "execute")
 
     rps_bypass[0].data_ports[4] = make_read_port<InstructionOutput>("BRANCH_2_EXECUTE_BYPASS", Port::LATENCY);
     rps_bypass[1].data_ports[4] = make_read_port<InstructionOutput>("BRANCH_2_EXECUTE_BYPASS", Port::LATENCY);
+
+    rps_bypass[0].data_ports[5] = make_read_port<InstructionOutput>("LATE_ALU_2_EXECUTE_BYPASS", Port::LATENCY);
+    rps_bypass[1].data_ports[5] = make_read_port<InstructionOutput>("LATE_ALU_2_EXECUTE_BYPASS", Port::LATENCY);
 }
 
 template <typename FuncInstr>
@@ -55,7 +58,7 @@ void Execute<FuncInstr>::clock( Cycle cycle)
     sout << "execute cycle " << std::dec << cycle << ": ";
 
     const bool is_flush = ( rp_flush->is_ready( cycle) && rp_flush->read( cycle))
-                       || ( rp_trap->is_ready( cycle) && rp_trap->read( cycle));
+                          || ( rp_trap->is_ready( cycle) && rp_trap->read( cycle));
 
     /* update information about mispredictions */
     clock_saved_flush();
@@ -79,7 +82,6 @@ void Execute<FuncInstr>::clock( Cycle cycle)
             wp_writeback_datapath->write( instr, cycle);
         }
     }
-
 
     /* check if there is something to process */
     if ( !rp_datapath->is_ready( cycle))
@@ -112,9 +114,14 @@ void Execute<FuncInstr>::clock( Cycle cycle)
     /* log */
     sout << instr << std::endl;
 
-    if ( instr.is_long_arithmetic()) 
+    if ( instr.is_long_arithmetic())
     {
         wp_long_latency_execution_unit->write( std::move( instr), cycle);
+    }
+    else if (instr.get_alu_number() == 1)
+    {
+        wp_writeback_datapath->write(std::move(instr), cycle);
+        return;
     }
     else
     {
@@ -131,7 +138,7 @@ void Execute<FuncInstr>::clock( Cycle cycle)
         }
         else
         {
-            wp_writeback_datapath->write( std::move( instr), cycle);
+            wp_writeback_datapath->write(std::move(instr), cycle);
         }
     }
 }

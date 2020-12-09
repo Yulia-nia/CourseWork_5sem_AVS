@@ -3,7 +3,7 @@
  * @author Pavel Kryukov pavel.kryukov@phystech.edu
  * Copyright 2019 MIPT-MIPS
  */
- 
+
 #ifndef OPERATION_H
 #define OPERATION_H
 
@@ -72,6 +72,16 @@ class Operation
 {
 public:
     Operation(Addr pc, Addr new_pc) : PC(pc), new_PC(new_pc) { }
+
+    void set_alu_number(uint8 number)
+    {
+        alu_number = number;
+    }
+
+    uint8 get_alu_number()
+    {
+        return alu_number;
+    }
 
     void set_type( OperationType type) { operation = type; }
 
@@ -149,6 +159,7 @@ protected:
     Addr target = NO_VAL32;
 
 private:
+    uint8 alu_number = 0;
     OperationType operation = OUT_UNKNOWN;
     uint64 sequence_id = NO_VAL64;
 };

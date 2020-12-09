@@ -6,10 +6,10 @@ template <typename ISA>
 Writeback<ISA>::Writeback( Module* parent, std::endian endian) : Module( parent, "writeback"), endian( endian)
 {
     rp_mem_datapath = make_read_port<Instr>("MEMORY_2_WRITEBACK", Port::LATENCY);
-    rp_execute_datapath = make_read_port<Instr>("EXECUTE_2_WRITEBACK", Port::LATENCY);
+    rp_execute_datapath = make_read_port<Instr>("LATE_ALU_2_WRITEBACK", Port::LATENCY);
     rp_branch_datapath = make_read_port<Instr>("BRANCH_2_WRITEBACK", Port::LATENCY);
     rp_trap = make_read_port<bool>("WRITEBACK_2_ALL_FLUSH", Port::LATENCY);
-
+    rp_late_alu = make_read_port<Instr>("LATE_ALU_2_WRITEBACK", Port::LATENCY);
     wp_bypass = make_write_port<InstructionOutput>("WRITEBACK_2_EXECUTE_BYPASS", Port::BW);
     wp_halt = make_write_port<Trap>("WRITEBACK_2_CORE_HALT", Port::BW);
     wp_trap = make_write_port<bool>("WRITEBACK_2_ALL_FLUSH", Port::BW);
@@ -50,7 +50,7 @@ void Writeback<ISA>::set_checker_target( const Target& value)
 template <typename ISA>
 auto Writeback<ISA>::read_instructions( Cycle cycle)
 {
-    auto ports = { rp_branch_datapath, rp_mem_datapath, rp_execute_datapath };
+    auto ports = { rp_branch_datapath, rp_mem_datapath, rp_late_alu };
     std::vector<Instr> result;
 
     for ( auto& port : ports)
@@ -86,7 +86,7 @@ void Writeback<ISA>::writeback_instruction_system( Writeback<ISA>::Instr* instr,
     auto result_trap = driver->handle_trap( *instr);
     checker.driver_step( *instr);
     if ( executed_instrs >= instrs_to_run)
-        wp_halt->write( Trap( Trap::BREAKPOINT), cycle);     
+        wp_halt->write( Trap( Trap::BREAKPOINT), cycle);
     else
         wp_halt->write( result_trap, cycle);
 

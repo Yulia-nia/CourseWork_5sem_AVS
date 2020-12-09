@@ -2,6 +2,10 @@
  * perf_instr.h - instruction class for performance simulation
  * Copyright 2018 MIPT-MIPS
  */
+/*
+ * perf_instr.h - instruction class for performance simulation
+ * Copyright 2018 MIPT-MIPS
+ */
 
 #ifndef PERF_INSTR_H
 #define PERF_INSTR_H
@@ -25,8 +29,10 @@ class PerfInstr : public FuncInstr
     }
 
 public:
+    uint8 alu_number_instruction = 0;
+
     PerfInstr( const FuncInstr& instr, const BPInterface& bp_info) : FuncInstr( instr), bp_data( bp_info) { }
-    
+
     const auto& get_bp_data() const { return bp_data; }
 
     // Get targets for the next instruction, predicted and actual

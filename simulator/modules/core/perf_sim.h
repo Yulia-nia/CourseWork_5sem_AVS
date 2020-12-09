@@ -16,12 +16,8 @@
 #include <modules/ports_instance.h>
 #include <modules/writeback/writeback.h>
 #include <simulator.h>
-
-#include <array>
 #include <chrono>
-#include <iomanip>
-#include <iostream>
-#include <sstream>
+#include <modules/late_alu/late_alu.h>
 
 template <typename ISA>
 class PerfSim : public CycleAccurateSimulator
@@ -44,7 +40,7 @@ public:
     size_t max_cpu_register() const final { return Register::MAX_REG; }
 
     Addr get_pc() const final;
-    
+
     uint64 read_cpu_register( size_t regno) const final { return read_register( Register::from_cpu_index( regno)); }
     uint64 read_gdb_register( size_t regno) const final;
     uint64 read_csr_register( std::string_view reg_name) const final { return read_register( Register::from_csr_name( reg_name)); }
@@ -74,6 +70,7 @@ private:
     Fetch<FuncInstr> fetch;
     Decode<FuncInstr> decode;
     Execute<FuncInstr> execute;
+    Late_alu<FuncInstr> late_alu;
     Mem<FuncInstr> mem;
     Branch<FuncInstr> branch;
     Writeback<ISA> writeback;
