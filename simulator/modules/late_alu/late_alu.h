@@ -1,5 +1,5 @@
-#ifndef LATE_ALU_H
-#define LATE_ALU_H
+#ifndef MIPT_MIPS_LATE_ALU_H
+#define MIPT_MIPS_LATE_ALU_H
 
 #include <func_sim/operation.h>
 #include <infra/config/config.h>
@@ -63,4 +63,4 @@ public:
     }
 };
 
-#endif // EXECUTE_LATE_H
+#endif // MIPT_MIPS_LATE_ALU_H
