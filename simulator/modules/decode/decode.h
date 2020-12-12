@@ -66,9 +66,17 @@ private:
     {
         int8 path_number = 0;
         uint8 value_alu = 0;
-        uint8 instr_latency = 0;
+        uint8 instruction = 0;
     } register_1, register_2;
 
+    struct path
+
+        bool registers[2] = {false, false};
+        uint8 alu_number = 0;
+    } decode_to_execute, execute_to_late_alu, execute_to_mem, late_alu_to_writeback, mem_to_writeback;
+
+    void get_path(uint8 reg, struct registers * r);
+    void set_registers();
 };
 
 

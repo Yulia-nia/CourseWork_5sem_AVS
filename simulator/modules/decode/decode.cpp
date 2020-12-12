@@ -138,6 +138,9 @@ void Decode<FuncInstr>::clock( Cycle cycle)
         int value_2 = 1;
         if( (! is_reg1_zero) && (! is_reg2_zero))
         {
+            set_registers();
+            get_path( value_1, &register_1);
+            get_path( value_2, &register_2);
             auto wps_port = wps_command;
             if ( is_register_1 || is_register_2) {
                 if ( is_register_1) {
@@ -155,12 +158,12 @@ void Decode<FuncInstr>::clock( Cycle cycle)
 
             else if ( !( is_register1_register2))
             {
-                if ( register_1.instr_latency > 1) {
+                if ( register_1.instruction > 1) {
                     alu_number_decoder = register_1.value_alu;
                     instr.set_alu_number( register_1.value_alu);
                     rf->read_source( &instr, value_1);
 
-                } else if ( register_2.instr_latency > 1) {
+                } else if ( register_2.instruction > 1) {
                     alu_number_decoder = register_2.value_alu;
                     instr.set_alu_number( register_2.value_alu);
                     rf->read_source( &instr, value_2);
@@ -205,6 +208,73 @@ void Decode<FuncInstr>::clock( Cycle cycle)
 
     wp_datapath->write( std::move( instr), cycle);
 }
+
+
+template <typename FuncInstr>
+void Decode<FuncInstr>::get_path(uint8 reg, struct registers * r)
+{
+    if ( decode_to_execute.registers[reg])
+    {
+        r->value_alu = 1;
+        r->path_number = 1;
+        r->instruction = 2;
+    }
+    else if ( decode_to_execute.registers[reg] && decode_to_execute.alu_number == 0)
+    {
+        r->value_alu = 0;
+        r->path_number = 1;
+        r->instruction = 1;
+    }
+    else if ( decode_to_execute.registers[reg] && decode_to_execute.alu_number == 1)
+    {
+        r->value_alu = 1;
+        r->path_number = 5;
+        r->instruction = 2;
+    }
+    else if ( execute_to_mem.registers[reg])
+    {
+        r->value_alu = 0;
+        r->path_number = 2;
+        r->instruction = 1;
+    }
+    else if ( execute_to_late_alu.registers[reg])
+    {
+        r->value_alu = 0;
+        r->path_number = 5;
+        r->instruction = 1;
+    }
+    else if ( late_alu_to_writeback.registers[reg] || mem_to_writeback.registers[reg] )
+    {
+        r->value_alu = 0;
+        r->path_number = 3;
+        r->instruction = 1;
+    }
+    else
+    {
+        r->path_number = -1;
+    }
+}
+
+
+template <typename FuncInstr>
+void Decode<FuncInstr>::set_registers()
+{
+    int value_1 = 0;
+    int value_2 = 1;
+
+    is_register_1 = false;
+    if( decode_to_execute.registers[value_1]
+       || execute_to_late_alu.registers[value_1] || execute_to_mem.registers[value_1]
+       || late_alu_to_writeback.registers[value_1] || mem_to_writeback.registers[value_1] )
+        is_register_1 = true;
+
+    is_register_2 = false;
+    if( decode_to_execute.registers[value_2]
+       || execute_to_late_alu.registers[value_2] || execute_to_mem.registers[value_2]
+       || late_alu_to_writeback.registers[value_2] || mem_to_writeback.registers[value_2])
+        is_register_2 = true;
+}
+
 
 
 #include <mips/mips.h>
