@@ -9,7 +9,6 @@
 #define DATA_BYPASS_H
 
 #include "data_bypass_interface.h"
-
 #include <modules/core/perf_instr.h>
 
 #include <array>
@@ -25,6 +24,11 @@ class DataBypass
         explicit DataBypass( uint64 long_alu_latency) noexcept
             : long_alu_latency( long_alu_latency)
         { }
+
+        auto get_operation_latency()
+        {
+            return writeback_stage_info.operation_latency;
+        }
 
         // checks whether a source register of an instruction is in the RF
         auto is_in_RF( const Instr& instr, size_t src_index) const noexcept
@@ -44,20 +48,21 @@ class DataBypass
         auto is_stall( const Instr& instr) const noexcept
         {
             const auto instruction_latency = get_instruction_latency( instr);
-
             return (( !is_in_RF( instr, 0) && !is_bypassible( instr, 0)) ||
                     ( !is_in_RF( instr, 1) && !is_bypassible( instr, 1)) ||
                     ( instruction_latency < writeback_stage_info.operation_latency &&
-                      Latency( writeback_stage_info.writeback_bandwidth) < 
-                        writeback_stage_info.operation_latency)); 
+                        Latency( writeback_stage_info.writeback_bandwidth) <
+                                writeback_stage_info.operation_latency));
         }
 
         // returns a bypass command for a source register of an instruction
         // in accordance with a current state of the scoreboard
-        auto get_bypass_command( const Instr& instr, size_t src_index) const noexcept
+        auto get_bypass_command( const Instr& instr, size_t src_index, uint8 value) const noexcept
         {
             const auto reg_num = instr.get_src( src_index);
-            return BypassCommand<Register>( get_entry( reg_num).current_stage, long_alu_latency - 1_lt);
+            auto result_ready = BypassCommand<Register>(get_entry(reg_num).current_stage, long_alu_latency - 1_lt);
+            result_ready.set_ready(value);
+            return result_ready;
         }
 
         // garners the information about a new instruction
@@ -186,9 +191,6 @@ void DataBypass<FuncInstr>::trace_new_dst_register( const Instr& instr, Register
         entry.ready_stage.set_to_first_execution_stage();
     }
 
-    if ( !instr.is_bypassible())
-        entry.ready_stage.set_to_in_RF();
-
 
     entry.is_bypassible = ( entry.current_stage == entry.ready_stage);
     entry.is_traced = true;
@@ -239,11 +241,15 @@ void DataBypass<FuncInstr>::update() noexcept
 
         if ( entry.current_stage.is_first_execution_stage())
             entry.current_stage = entry.next_stage_after_first_execution_stage;
+        else if ( entry.current_stage.is_late_alu())
+        {
+            entry.current_stage.set_to_first_execution_stage();
+        }
         else if ( entry.current_stage.is_same_stage( long_alu_latency - 1_lt) || entry.current_stage.is_mem_or_branch_stage())
             entry.current_stage.set_to_writeback();
         else
             entry.current_stage.inc();
-        
+
         if ( entry.current_stage == entry.ready_stage)
             entry.is_bypassible = true;
     }

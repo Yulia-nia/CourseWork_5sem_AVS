@@ -83,7 +83,7 @@ void Late_alu<FuncInstr>::clock( Cycle cycle)
     {
         if (bypass_source.command_port->is_ready(cycle))
         {
-            const auto bypass_direction = bypass_source.command_port->read(cycle).get_ready_stage();
+            const auto bypass_direction = bypass_source.command_port->read(cycle).get_ready();
             auto& port = bypass_source.data_ports.at(bypass_direction);
             RegisterUInt data{};
             while (port->is_ready(cycle))
