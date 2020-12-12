@@ -32,11 +32,13 @@ public:
 private:
     auto read_instr( Cycle cycle) const;
     bool is_flush( Cycle cycle) const;
+    bool is_register_1 = false;
+    bool is_register_2 = false;
     static bool is_misprediction( const Instr& instr, const BPInterface& bp_data);
 
     uint64 num_jumps          = 0;
     uint64 num_mispredictions = 0;
-
+    int alu_number_decoder   = 0;
     RF<FuncInstr>* rf = nullptr;
     std::unique_ptr<BypassingUnit> bypassing_unit = nullptr;
 
@@ -56,8 +58,17 @@ private:
     WritePort<Instr>* wp_bypassing_unit_notify = nullptr;
     WritePort<BPInterface>* wp_bp_update = nullptr;
     std::array<WritePort<BypassCommand<Register>>*, SRC_REGISTERS_NUM> wps_command;
+    std::array<WritePort<BypassCommand<Register>>*, SRC_REGISTERS_NUM> wps_command_late_alu;
     WritePort<bool>* wp_flush_fetch = nullptr;
     WritePort<Target>* wp_flush_target = nullptr;
+
+    struct registers
+    {
+        int8 path_number = 0;
+        uint8 value_alu = 0;
+        uint8 instr_latency = 0;
+    } register_1, register_2;
+
 };
 
 

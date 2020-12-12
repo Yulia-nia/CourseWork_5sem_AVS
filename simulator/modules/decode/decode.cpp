@@ -6,6 +6,7 @@
 #include "decode.h"
 
 #include <modules/execute/execute.h>
+#include <modules/late_alu/late_alu.h>
 
 template <typename FuncInstr>
 Decode<FuncInstr>::Decode( Module* parent) : Module( parent, "decode")
@@ -25,6 +26,8 @@ Decode<FuncInstr>::Decode( Module* parent) : Module( parent, "decode")
     wp_stall = make_write_port<bool>("DECODE_2_FETCH_STALL", Port::BW);
     wps_command[0] = make_write_port<BypassCommand<Register>>("DECODE_2_EXECUTE_SRC1_COMMAND", Port::BW);
     wps_command[1] = make_write_port<BypassCommand<Register>>("DECODE_2_EXECUTE_SRC2_COMMAND", Port::BW);
+    wps_command_late_alu[0] = make_write_port<BypassCommand<Register>>("DECODE_2_LATE_ALU_SRC1_COMMAND", Port::BW);
+    wps_command_late_alu[1] = make_write_port<BypassCommand<Register>>("DECODE_2_LATE_ALU_SRC2_COMMAND", Port::BW);
     wp_bypassing_unit_notify = make_write_port<Instr>("DECODE_2_BYPASSING_UNIT_NOTIFY", Port::BW);
     wp_flush_fetch = make_write_port<bool>("DECODE_2_FETCH_FLUSH", Port::BW);
     wp_flush_target = make_write_port<Target>("DECODE_2_FETCH_TARGET", Port::BW);
@@ -62,7 +65,7 @@ bool Decode<FuncInstr>::is_flush( Cycle cycle) const
         || ( rp_flush_fetch->is_ready( cycle) && rp_flush_fetch->read( cycle));
 }
 
-template <typename FuncInstr>
+template<typename FuncInstr>
 void Decode<FuncInstr>::clock( Cycle cycle)
 {
     sout << "decode  cycle " << std::dec << cycle << ": ";
@@ -122,26 +125,76 @@ void Decode<FuncInstr>::clock( Cycle cycle)
         }
     }
 
-    if ( bypassing_unit->is_stall( instr))
+    if ( bypassing_unit->get_operation_latency() <= 1_lt)
+    {
+        const auto& register1 = instr.get_src(0);
+        const auto& register2 = instr.get_src(1);
+
+        bool is_reg1_zero = register1.is_zero();
+        bool is_reg2_zero = register2.is_zero();
+        bool is_register1_register2 = register1 == register2;
+
+        int value_1 = 0;
+        int value_2 = 1;
+        if( (! is_reg1_zero) && (! is_reg2_zero))
+        {
+            auto wps_port = wps_command;
+            if ( is_register_1 || is_register_2) {
+                if ( is_register_1) {
+                    alu_number_decoder = register_1.value_alu;
+                    instr.set_alu_number( register_1.value_alu);
+                } else {
+                    alu_number_decoder = register_2.value_alu;
+                    instr.set_alu_number( register_2.value_alu);
+                }
+                auto c_1 = bypassing_unit->get_bypass_command( instr, value_1, register_1.path_number);
+                wps_port.at( value_1)->write( c_1, cycle);
+                auto c_2 = bypassing_unit->get_bypass_command( instr, value_2, register_2.path_number);
+                wps_port.at( value_2)->write( c_2, cycle);
+            }
+
+            else if ( !( is_register1_register2))
+            {
+                if ( register_1.instr_latency > 1) {
+                    alu_number_decoder = register_1.value_alu;
+                    instr.set_alu_number( register_1.value_alu);
+                    rf->read_source( &instr, value_1);
+
+                } else if ( register_2.instr_latency > 1) {
+                    alu_number_decoder = register_2.value_alu;
+                    instr.set_alu_number( register_2.value_alu);
+                    rf->read_source( &instr, value_2);
+                }
+                auto c_1 = bypassing_unit->get_bypass_command( instr, value_1, register_1.path_number);
+                wps_port.at( value_1)->write( c_1, cycle);
+                auto c_2 = bypassing_unit->get_bypass_command( instr, value_2, register_2.path_number);
+                wps_port.at( value_2)->write( c_2, cycle);
+
+            }
+            else if ((is_register1_register2)) {
+                auto c_1 = bypassing_unit->get_bypass_command( instr, value_1, register_2.path_number);
+                wps_port.at( value_1)->write( c_1, cycle);
+                auto c_2 = bypassing_unit->get_bypass_command( instr, value_2, register_2.path_number);
+                wps_port.at( value_2)->write( c_2, cycle);
+            }
+        }
+        else
+        {
+           if (! is_register_1)
+                rf->read_source(&instr, 0);
+            if (! is_register_2)
+                rf->read_source(&instr, 1);
+            alu_number_decoder = 0;
+            instr.set_alu_number(alu_number_decoder);
+        }
+    }
+    else
     {
         // data hazard, stalling pipeline
         wp_stall->write( true, cycle);
         wp_stall_datapath->write( instr, cycle);
         sout << instr << " (data hazard)\n";
         return;
-    }
-
-    for ( size_t src_index = 0; src_index < SRC_REGISTERS_NUM; src_index++)
-    {
-        if ( bypassing_unit->is_in_RF( instr, src_index))
-        {
-            rf->read_source( &instr, src_index);
-        }
-        else if ( bypassing_unit->is_bypassible( instr, src_index))
-        {
-            const auto bypass_command = bypassing_unit->get_bypass_command( instr, src_index);
-            wps_command.at( src_index)->write( bypass_command, cycle);
-        }
     }
 
     /* notify bypassing unit about new instruction */
